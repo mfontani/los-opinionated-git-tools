@@ -1,0 +1,3 @@
+#!/bin/bash
+BRANCH=${1:-master}
+vi $( git log --pretty=oneline --reverse --abbrev-commit $BRANCH.. | git rr | grep '#' | sort | uniq | grep '  ' | perl -lane 's/^#  // and print' )

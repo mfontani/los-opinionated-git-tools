@@ -1,0 +1,3 @@
+#!/bin/bash
+BRANCH=${1:-master}
+git log --numstat $BRANCH.. | perl -ne'/^\d+\s+\d+\s+(.*)$/ and print "$1\n"' | sort | uniq

@@ -1,0 +1,181 @@
+# What are los-opinionated-git-tools?
+
+This is a collection of aliases and "git commands" you may want to place in
+your ~/bin/ directory, to aid your day-to-day interaction with Git.
+
+I've used these ones for a long time, both at home and at my current workplace.
+
+Some aliases and scripts "just" need /bin/bash; others need "perl" installed in
+the system.  Some of them should be rewritten to use just /bin/bash. Patches
+welcome.
+
+Some of them have been created while working at The Register (Situation
+Publishing LTD), and they kindly agreed to have me release them under a
+permissive (BSD) license. So,
+
+# COPYRIGHT NOTICE
+
+Copyright (c) 2011, 2012 Marco Fontani <MFONTANI@cpan.org>. Portions Copyright (c) 2011, 2012 Situation Publishing LTD. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+* Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+* The names of its contributors may not be used to endorse or promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# ALIASES
+
+These aliases will be installed if you launch:
+
+    ./setup-add-gitconfig-aliases 1
+
+    git s    - a quick and easy status for added and modified files only
+    git ss   - just "status -s"
+    git co   - alias for "checkout"
+    git cb   - alias for "checkout -b"
+    git fa   - alias for "fetch --verbose --all"
+    git pr   - alias for "pull --rebase"
+    git prom - alias for "pull --rebase origin master"
+    git fcm  - alias for "file-changed-from master"
+    git ya   - shows the "youngest ancestor" between this and the given branch
+    git lf   - shows a full log of changes from master
+    git lf   - shows a full log of changes from origin/master
+    git ll   - shows a short log of changes from master
+    git llo  - shows a short log of changes from origin/master
+
+It's recommended you run ./setup-add-gitconfig-aliases with no parameters, to
+see which (if any) aliases of yours would be wiped by installing the new aliases. 
+
+The code which does this may be clunky, so use at your own risk!
+
+# COMMANDS
+
+These are the commands which will be installed to your ~/bin/ when doing a
+"make install":
+
+## git-changefile
+
+For each local branch, shows the differences between that branch's file and this
+branch's, if there are any. Written in Perl.
+
+    $ git changefile path/to/file
+
+## git-dump
+
+With no arguments, "toggles" renaming the current branch from branchname
+to DUMP/branchname or back. If given an argument, it toggles it from branchname
+to REVIEW/branchname or back. Written in Perl.
+
+    [mf/foo] $ git dump
+    [DUMP/mf/foo] $ git dump
+    [mf/foo] $ git dump 1
+    [REVIEW/mf/foo] $ git dump
+    [mf/foo] $
+
+## git-files-changed-from
+
+Shows a list of files which were added or changed in the current branch,
+compared to a given branch, or "master".
+
+    [mf/foo] $ git files-changed-from   # defaults to "master"
+    path/to/foo
+    path/to/bar
+
+    [mf/foo/bar] $ git files-changed-from mf/foo
+    path/to/foo2
+    path/to/bar2
+
+## git-rr
+
+To be used within Vim, inside the text shown by "git rebase --interactive FOO".
+Visually select the various "pick" lines, and ":'<,'>!git-rr FOO" on them.
+It will replace those commit lines with the same commit line, followed by the
+list of files which were changed/added/deleted by that commit. This aids when
+going through a list of commits to find which commits should be squashed or
+fixup'd where, based on which files were changed. Mnemonic: "Rebase Right".
+
+    $ EDITOR=vim git rebase --interactive FOO
+    (in Vim)
+    /pick<Enter>V}          # visually select commits block
+    :!git rr FOO            # replace lines with output of script
+
+## git-show-missing-commits
+
+Given two branches, shows which commits "are the same" or differ between these
+two branches' tips, and their common ancestor. Useful for branch review.
+Output is in a diff-like format, just for commit identifications rather than
+code changes.
+
+## git-upstream
+
+Prints what the local branch considers to be "upstream".
+
+    [master] $ git upstream
+    origin/master
+
+Useful in more convoluted commands, like:
+
+    $ git diff $( git upstream )
+
+## git-vifcf
+
+Launches "vi" on the list of files which were changed from the branch given
+(defaults to "master"). Mnemonic: "VI the Files Changed From"
+
+    [foo] $ git vifcf
+    # now inside vim, one buffer per file changed from "master"
+
+    [foo/bar] $ git vifcf foo
+    # now inside vim, one buffer per file changed from "foo"
+
+## git-fixup
+
+Aids "fixing up" commits, in some specific cases. This is a quite complicated,
+and very opinionated script. Use at your risk.
+
+Case A: You're "reviewing" a branch, and are preparing one huge commit in which
+you'll stash all your review notes and comments. You commit one change once,
+and note down its SHA. Subsequently, you do:
+
+    [foobar] $ git add foo bar; git fixup SHA
+
+The above will commit the two files and add a commit telling the script to
+automatically "fixup" it into the given SHA commit. It will also launch the
+rebase and do the automatic fixup. If you don't want the automatic rebase to be
+performed, you simply use the "--no-auto" option and eventually the "-f" option
+to actually perform the automatic rebase.
+
+    [foobar] $ git add foo; git fixup --no-auto SHA
+    # commit done, no rebase happened
+    [foobar] $ git add bar; git fixup --no-auto SHA
+    # commit done, no rebase happened
+    [foobar] $ git fixup -f
+    # automatic rebase/fixup behind the scenes
+
+Case B: You're code-code-code-ing on a branch and notice you screwed up something
+in an earlier commit. Luckily, you know you screwed it up on the *last* commit
+to touch that file. You want the current change to be fixed up automatically to
+that last commit. You can use --no-auto if you want to continue working without
+having the automatic rebase happen behind the scenes:
+
+    $ echo -e'package foobar;\nsub new {}\n' > foobar.pm
+    $ git add foobar.pm ; git commit foobar.pm -m 'Add foobar.pm'
+    $ # code code code on other files, *not* foobar.pm
+    $ # oh damn forgot the "1;" at the end of foobar.pm
+    $ echo -e'\n1;\n' >> foobar.pm     # this fixes it
+    $ git fixup --no-auto foobar.pm
+    $ # continue working on other things, and eventually:
+    $ git fixup -f         # do the automatic rebase thing
+
+# Why the silly name?
+
+Some of the tools were thought of and created whilst working at "El Reg".

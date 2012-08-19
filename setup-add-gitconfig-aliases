@@ -1,0 +1,72 @@
+#!/bin/bash
+
+# Give this script a parameter if you want to force the "install" of the various
+# aliases.
+FORCE=$1
+
+# [alias]
+ALIAS_ss="status -s"
+ALIAS_co="checkout"
+ALIAS_cb="checkout -b"
+ALIAS_fa="fetch --verbose --all"
+ALIAS_pr="pull --rebase"
+ALIAS_prom="pull --rebase origin master"
+ALIAS_fcm="files-changed-from master"
+ALIAS_lf="log  --pretty=full    --reverse -p --abbrev-commit master.."
+ALIAS_ll="log  --pretty=oneline --reverse    --abbrev-commit master.."
+ALIAS_lfo="log --pretty=full    --reverse -p --abbrev-commit origin/master.."
+ALIAS_llo="log --pretty=oneline --reverse    --abbrev-commit origin/master.."
+# For the following "longer" aliases, add DOUBLE-escaping of "" since they'll
+# need to be double-escaped when adding the aliases to ~/.gitconfig via
+# git-config --add. For aid, the line which should appear in ~/.gitconfig is
+# shown as it should appear there.
+#     s=!/bin/bash -c 'git status -s | perl -lne \"s/^\\s*[MA]\\s*// and print\"''
+ALIAS_s="!/bin/bash -c 'git status -s | perl -lne \"s/^\\\\s*[MA]\\\\s*// and print\"'"
+# ya = !/bin/bash -c 'diff -u <(git rev-list --first-parent "${1:-master}") <(git rev-list --first-parent "${2:-HEAD}") | sed -ne \"s/^ //p\" | head -1' -
+ALIAS_ya="!/bin/bash -c 'diff -u <(git rev-list --first-parent \"\${1:-master}\") <(git rev-list --first-parent \"\${2:-HEAD}\") | sed -ne \"s/^ //p\" | head -1' -"
+
+# git s      a quick and easy status for added and modified files only
+# git ss     just "status -s"
+#     co     alias for "checkout"
+#     cb     alias for "checkout -b"
+#     fa     alias for "fetch --verbose --all"
+#     pr     alias for "pull --rebase"
+#     prom   alias for "pull --rebase origin master"
+#     fcm    alias for "file-changed-from master"
+#     ya     shows the "youngest ancestor" between this and the given branch
+#     lf/lfo shows a full log of changes from master / origin/master
+#     ll/llo shows a short log of changes from master / origin/master
+
+for wanted in s ss co cb fa pr prom fcm ya lf ll lfo llo;
+do
+  VAL=$(git config --global --get "alias.$wanted");
+  if [[ ! -z "$VAL" ]]; then
+    echo "[WARN]  alias $wanted already exists:   $VAL"
+    FOO=$( eval "echo \$ALIAS_$wanted" )
+    echo "We'd add it to be:   $FOO"
+  else
+    echo "[OK] alias $wanted not currently configured"
+  fi
+done
+
+if [[ -z "$FORCE" ]]; then
+  echo "Done. Give a paramter to this script to force its execution. That will"
+  echo "replace *all* the above aliases in your ~.gitconfig. If you don't want"
+  echo "to, have a look at the top of this script and copy only the ones you"
+  echo "want to to your ~/.gitconfig"
+  exit 0
+fi
+
+echo "Forcing setting all aliases."
+
+for wanted in s ss co cb fa pr prom fcm ya lf ll lfo llo;
+do
+  VAL=$(git config --global --get "alias.$wanted");
+  if [[ ! -z "$VAL" ]]; then
+    git config --global --unset-all "alias.$wanted"
+    echo "[INFO] Original alias $wanted removed."
+    echo "       Was: $VAL"
+  fi
+  FOO=$( eval "echo \$ALIAS_$wanted" )
+  git config --global --add "alias.$wanted" "$FOO"
+done

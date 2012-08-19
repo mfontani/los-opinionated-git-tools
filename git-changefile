@@ -1,0 +1,14 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+
+my $file = shift
+    or die "git-changefile: need a file\n";
+
+my @branches = map { chomp;substr($_,2) } qx{git branch};
+for my $b (@branches) {
+    my @diff = qx!git diff $b -- $file!;
+    next if !@diff;
+    print "***** DIFF FOR BRANCH $b *****\n";
+    print "@diff";
+}

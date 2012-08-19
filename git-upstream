@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# Was:
+# perl -le'
+#   chomp(my $branch=qx{git symbolic-ref HEAD})
+#     or die "Cannot find branch ref\n";
+#   print qx{git for-each-ref --format="%(upstream:short)" $branch};
+# '
+
+BRANCH=$(git symbolic-ref HEAD)
+if [[ -z "$BRANCH" ]]; then
+  echo "Cannot find branch ref for the current ref. Giving up."
+  exit 1
+fi
+git for-each-ref --format="%(upstream:short)" $BRANCH

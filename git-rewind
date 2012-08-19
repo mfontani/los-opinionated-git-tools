@@ -1,0 +1,58 @@
+#!/bin/bash
+set -e # kill script ASAP if any command returns non-true
+INITIALS=mf
+if [[ ! -d .git ]]; then
+    echo 'OI! Run from a place that has a .git directory on it!'
+    exit 1
+fi
+
+trap 'echo AIEE; exit 1' EXIT
+
+# A development branch "child" contains the parent branch name, separated
+# by double dashes
+REGEX_DEVELOPMENT_BRANCH='^(.*)--(.*)$'
+
+git stash
+
+### Just "git fa && git prom" instead.
+git fetch --verbose origin
+git checkout master
+git pull --rebase origin master
+
+# TLC for the "mf/work" branch
+echo "Rebasing special $INITIALS/work branch from master"
+git checkout $INITIALS/work
+git rebase master $*
+
+git checkout master
+
+for mybra in $(git branch | grep -e " $INITIALS/" | grep -v '^$'); do
+    echo
+    if [[ $mybra =~ $REGEX_DEVELOPMENT_BRANCH ]]; then
+        PARENTDEV=${BASH_REMATCH[1]}
+        echo "Rebasing $mybra to PARENT '$PARENTDEV'"
+        git checkout $mybra
+        git rebase $PARENTDEV $*
+        if [[ -z $1 ]]; then # not when interactively
+            git push origin +$mybra
+        fi
+    else
+        if [[ $mybra =~ 'dev-' ]]; then
+            echo "Rebasing $mybra to WORK"
+            git checkout $mybra
+            git rebase $INITIALS/work $*
+        else
+            echo "Rebasing $mybra to MASTER"
+            git checkout $mybra
+            git rebase master $*
+            if [[ -z $1 ]]; then # not when interactively
+                git push origin +$mybra
+            fi
+        fi
+    fi
+done
+echo
+
+trap - EXIT
+
+exit 0

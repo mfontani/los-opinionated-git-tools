@@ -1,0 +1,249 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Getopt::Long;
+
+my $verbose     = 0;
+my $auto_squash = 1;
+my $filter_mode = 0;
+my $branch      = 'master';
+my $help        = 0;
+my $man         = 0;
+my $debug       = 0;
+my $force       = 0;
+
+my $INVOCATION  = "$0 @ARGV";
+my $FIXUP_CMD   = '@fixup';
+
+my $rc = GetOptions(
+    'h|help'     => \$help,
+    'm|man'      => \$man,
+    'v|verbose'  => \$verbose,
+    'd|debug'    => \$debug,
+    'a|auto!'    => \$auto_squash,     # --no-auto
+    'F|filter'   => \$filter_mode,
+    'f|force'    => \$force,
+    'b|branch=s' => \$branch,
+);
+
+my $USAGE = <<"END_HELP";
+Usage: git fixup OPTIONS [--branch=master] [--verbose] [--no-auto] [--filter] [SHA/FILE]
+
+OPTIONS:
+
+    --branch  -b   Specify a branch to rebase interactive to (default: master)
+    --filter  -F   Work in "filter mode", or "commit mode" if not present
+    --auto    -a   (default) perform an interactive rebase after the commit
+    --no-auto      Do not perform the interactive rebase just yet
+    --force   -f   Force the interactive rebase even if no file given/modified
+
+    --verbose -v   Print more output
+    --debug   -d   Even more output
+
+    --help    -h   See the help page
+    --man     -m   See a longer help page, with examples
+END_HELP
+my $MAN = <<"END_MAN";
+$USAGE
+
+Example: changes to a file you'd like fixed up to a specific commit SHA:
+    \$ \$EDITOR filename
+    \$ git add   filename # mandatory
+    \$ git fixup SHA
+
+Example: fix up file changes to the last commit which "touched" it:
+    \$ \$EDITOR filename
+    \$ git add   filename # optional
+    \$ git fixup filename
+
+Example: commit fixups, but not yet rebase them; then, do the rebase:
+    \$ \$EDITOR file1
+    \$ git fixup --no-auto file1
+    \$ \$EDITOR file2
+    \$ git add file2
+    \$ git fixup --no-auto SHA
+    \$ ...
+    \$ git fixup --force       # does the rebase
+
+"COMMIT MODE":
+    git fixup --branch=BRANCH --verbose --no-auto [SHA/FILE]
+    - if FILE specified, add FILE to the commit index
+    - stash changes not in the index
+    - commit '$FIXUP_CMD SHA'
+    - if --no-auto, exit; else
+    - start a git rebase --interactive BRANCH (defaults to master)
+    - and auto-squash the current commit into the SHA-named commit, or
+      the last commit which "touched" FILE
+
+"FILTER MODE"
+    EDITOR="git fixup --filter --branch=BRANCH" git rebase --interactive BRANCH
+    git fixup --filter --branch=BRANCH /path/to/file
+    - Reads the commit SHAs given on STDIN
+    - places the lines $FIXUP_CMD properly
+    - continues the interactive rebase
+END_MAN
+
+do { print $USAGE; exit }
+    if $help;
+do { print $MAN; exit }
+    if $man;
+
+my @output_lines;
+sub fixup_commits_for {
+    my ($what, @potentials) = @_;
+    my (@good, @orphaned);
+    for (@potentials) {
+        if (/\Q$FIXUP_CMD\E (?:SHA|FILE):\Q$what\E/) {
+            push @good, $_;
+        } else {
+            push @orphaned, $_;
+        }
+    }
+    return \@good, \@orphaned;
+}
+sub output  { push @output_lines, @_; return \@output_lines; }
+sub verbose { return if !$verbose;    output @_; }
+sub debug   { return if !$debug;      output @_; }
+
+my $sha_or_file = shift @ARGV;
+do { die "Need a SHA or FILE to operate on. See -h.\n" }
+    if !$filter_mode && (!$force && !$sha_or_file);
+
+if (!$filter_mode) {
+    die "Sorry, $sha_or_file does *not* look like either a file or a SHA\n"
+        if !$force
+        && !-f $sha_or_file
+        && $sha_or_file !~ /^[a-fA-F0-9]+$/;
+    if ( $sha_or_file && -f $sha_or_file ) {
+        my @status = qx{git status --porcelain};
+        die "ERROR: Cannot fixup $sha_or_file as it's not even added!\n"
+            if scalar grep { $_ =~ /\?\?\s+\Q$sha_or_file\E/ } @status;
+        die "ERROR: $sha_or_file not changed. Aborting."
+            if !scalar grep { /^.. \Q$sha_or_file\E/ } @status;
+        qx{git commit $sha_or_file -m '$FIXUP_CMD FILE:$sha_or_file'};
+    } elsif ( $sha_or_file && $sha_or_file =~ /^[a-fA-F0-9]+$/ ) {
+        my @found = qx{git show --pretty=oneline -- $sha_or_file};
+        die "Commit ID $sha_or_file not found. Aborting.\n"
+            if !@found;
+        qx{git commit $sha_or_file -m '$FIXUP_CMD SHA:$sha_or_file'};
+    }
+    if ($auto_squash) {
+        my @options;
+        push @options, "--verbose" if $verbose;
+        push @options, "--debug"   if $debug;
+        push @options, "--branch $branch";
+        my $cmd = "EDITOR=\"$0 --filter @options\" git rebase --interactive $branch";
+        print "Executing:\n$cmd\n" if $debug;
+        exec $cmd
+            or die "Could not exec $cmd: $!";
+    }
+    exit 0;
+}
+
+# Filter mode, called from:
+# EDITOR="$0 --filter --branch=FOO" git rebase --interactive FOO
+verbose "# $INVOCATION\n";
+
+# Get input into @original_lines
+my @original_lines;
+if ( $sha_or_file && -f $sha_or_file ) {
+    open my $fh, '<', $sha_or_file
+        or die "While filtering, could not open $sha_or_file: $!";
+    while (my $line = <$fh>) { push @original_lines, $line };
+    close $fh
+        or die "While filtering, could not close $sha_or_file: $!";
+} else {
+    while (my $line = <STDIN>) { push @original_lines, $line };
+}
+
+# Pre-parse all lines, get which files were changed where, and put $FIXUP_CMD
+# lines in the right "bucket"
+my @as_is_lines;
+my @fixup_sha_lines;
+my @fixup_file_lines;
+my %last_commit_which_changed_file;
+my %files_changed_by_sha;
+for my $line (@original_lines) {
+    chomp $line;
+    if ( $line !~ /^pick\s([a-fA-F0-9]+)\s/ ) {
+        if ( $line =~ /^# Rebase/ ) {
+            output "$line\n";
+        } else {
+            debug "# Add as-is line: $line\n";
+            push @as_is_lines, $line;
+        }
+    } else {
+        my $current_commit_sha = $1;
+        my ($commit_info, @files_changed) =
+            qx{git log --abbrev-commit --stat --pretty=oneline --name-only $current_commit_sha -1};
+        chomp($_) for @files_changed;
+        $files_changed_by_sha{$current_commit_sha} = [ @files_changed ];
+        if ( $line =~ /\Q$FIXUP_CMD SHA:/ ) {
+            debug "# Add fixup SHA line: $line\n";
+            push @fixup_sha_lines, $line;
+        } elsif ( $line =~ /\Q$FIXUP_CMD FILE:/ ) {
+            debug "# Add fixup FILE line: $line\n";
+            push @fixup_file_lines, $line;
+        } else {
+            debug "# Add normal commit: $line\n";
+            push @as_is_lines, $line;
+            $last_commit_which_changed_file{$_} = $current_commit_sha
+                for @files_changed;
+        }
+        debug(map { "# ^-- changed file: $_\n" } @files_changed);
+    }
+}
+debug "# Done\n#\n";
+
+my @new_lines;
+for my $line (@as_is_lines) {
+    debug "# *** PICK *** line: $line\n";
+    push @new_lines, $line;
+    next if $line !~ /^\w+\s+([a-fA-F0-9]+)\s+/;
+    my $current_commit_sha = $1;
+    my ($sha_good, $sha_orphaned) = fixup_commits_for($current_commit_sha, @fixup_sha_lines);
+    debug "# ^-- *** FIXUP *** SHA fixup: $_\n"   for @$sha_good;
+    debug "# ^-- No SHA fixups for this commit\n" if !@$sha_good;
+    @fixup_sha_lines = @$sha_orphaned;
+    push @new_lines, map { s/^pick/fixup/; $_ } @$sha_good;
+    for my $file (@{ $files_changed_by_sha{$current_commit_sha} }) {
+        next if $last_commit_which_changed_file{$file} ne $current_commit_sha;
+        debug "# ^-- this is the last commit which touched $file\n";
+        my ($file_good, $file_orphaned) = fixup_commits_for($file, @fixup_file_lines);
+        debug "# ^-- *** FIXUP *** FILE fixup: $_\n"   for @$file_good;
+        debug "# ^-- No FILE fixups for this commit\n" if !@$file_good;
+        @fixup_file_lines = @$file_orphaned;
+        push @new_lines, map { s/^pick/fixup/; $_ } @$file_good;
+    }
+}
+output "# No orphaned SHA $FIXUP_CMD lines.\n"
+    if !@fixup_sha_lines;
+output "# No orphaned FILE $FIXUP_CMD lines.\n"
+    if !@fixup_file_lines;
+push @new_lines,
+    '# Orphaned SHA @git-fixup lines which could not be related to a commit/file:',
+    @fixup_sha_lines
+    if @fixup_sha_lines;
+push @new_lines,
+    '# Orphaned FILE @git-fixup lines which could not be related to a commit/file:',
+    @fixup_file_lines
+    if @fixup_file_lines;
+for my $line (@new_lines) {
+    output "$line\n";
+    next if $line !~ /^\w+\s+([a-fA-F0-9]+)\s/;
+    my $sha = $1;
+    next if !exists $files_changed_by_sha{$sha};
+    verbose "#   $_\n"
+        for @{ $files_changed_by_sha{$sha} };
+}
+if ( $sha_or_file && -f $sha_or_file ) {
+    open my $fh, '>', $sha_or_file
+        or die "Could not open $sha_or_file for writing: $!";
+    print $fh $_
+        for @output_lines;
+    close $fh
+        or die "Could not close $sha_or_file: $!";
+} else {
+    print for @output_lines;
+}
+exit;

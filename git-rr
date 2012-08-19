@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# Get current branch, without initial "heads/"
+BRANCH=$(git describe --all | perl -lne's!^heads/!!;print')
+
+# Kill the "git log" paging features
+PAGER=
+
+# Which branch to start with, defaults to master
+STARTBRANCH=$1
+if [[ -z $STARTBRANCH ]]; then
+    STARTBRANCH=master
+fi
+
+# Lines look like:
+# * c0ffee00 commit message1
+# path/to/file1
+# <-= newline
+# * 00c0ffee commit message2
+# path/to/file2
+# <-= newline
+
+echo "### navigate commits with /pick and 'n' or 'N'"
+echo "### use 'd/pick' on a line below 'pick' to clear the files changed by a specific commit"
+echo "### START Rebasing branch $BRANCH"
+echo "###"
+git log --reverse --pretty=format:'* %h   %s' --abbrev-commit --stat --name-only $STARTBRANCH.. | perl -lne'
+    if ( m!^\*! ) {
+        s!^\*!pick    !     # by default, show "pick"
+    } else {
+        s!^!#  !            # just comment-out anything else, with leading spaces for filenames
+    }
+    s!\s*$!!;               # kill any trailing spaces
+    print
+'
+echo "###"
+echo "### END Rebasing branch $BRANCH"
+echo "###"

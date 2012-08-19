@@ -1,0 +1,30 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+my $review = shift;
+my $prefix = $review ? 'REVIEW' : 'DUMP';
+my $re_prefix = qr!(REVIEW|DUMP)!;
+
+my $branch = do {
+    my @branches = qx{git branch};
+    chomp @branches;
+    my ($possible) = map { s/^\*\s+//; $_ } grep { /^\*/ } @branches;
+    $possible;
+};
+
+die "Can't do that on master\n"
+    if $branch eq 'master';
+
+my $new;
+if ($branch =~ /^$re_prefix/) {
+    $new = $branch;
+    $new =~ s!^$re_prefix/!!;
+} else {
+    $new = "$prefix/$branch";
+}
+
+print "Renaming $branch to $new\n";
+qx{git checkout -b $new};
+qx{git branch   -d $branch};
+print "Done\n";

@@ -1,0 +1,63 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Algorithm::Diff;
+
+my ($branch1, $branch2) = @ARGV;
+
+die "Need two branches\n"
+    if !$branch1
+    || !$branch2;
+
+# or as similar .gitconfig alias:
+#[alias]
+#    oldest-ancestor = !/bin/bash -c 'diff -u <(git rev-list --first-parent "${1:-master}") <(git rev-list --first-parent "${2:-HEAD}") | sed -ne \"s/^ //p\" | head -1' -
+sub oldest_ancestor {
+    my ($b1, $b2) = @_;
+    my $ans = qx{/bin/bash -c 'diff -u <(git rev-list --first-parent "$b1") <(git rev-list --first-parent "$b2") | sed -ne \"s/^ //p\" | head -1' -};
+    chomp $ans;
+    return $ans;
+}
+sub get_pretty {
+    my ($from, $to) = @_;
+    return map {chomp; $_} qx{git log --pretty=oneline $from..$to};
+}
+sub strip_sha {
+    my $commit = shift;
+    die "Doesn't look like a sha: $commit\n"
+        if $commit !~ /^([a-fA-F0-9]+)\s+/;
+    my ($sha, $commitmessage) = split(' ', $commit, 2);
+    return $commitmessage;
+}
+
+my $ancestor = oldest_ancestor( $branch1, $branch2 );
+print "oldest ancestor: $ancestor\n";
+my @first  = get_pretty( $ancestor, $branch1 );
+my @second = get_pretty( $ancestor, $branch2 );
+
+my @msg_first  = map { strip_sha($_) } @first;
+my @msg_second = map { strip_sha($_) } @second;
+
+my $diff = Algorithm::Diff->new( \@msg_first, \@msg_second );
+while(  $diff->Next()  ) {
+    #next   if  $diff->Same();
+    if ($diff->Same()) {
+        print "/= ($branch1) $_\n" for map { "$first[$_]" } $diff->Range(1);
+        print "\\= ($branch2) $_\n" for map { "$second[$_]" } $diff->Range(2);
+        next;
+    }
+    my $sep = '';
+    if(  ! $diff->Items(2)  ) {
+        printf "%d,%dd%d\n", $diff->Get(qw( Min1 Max1 Max2 ));
+    } elsif(  ! $diff->Items(1)  ) {
+        printf "%da%d,%d\n", $diff->Get(qw( Max1 Min2 Max2 ));
+    } else {
+        $sep = "---\n";
+        printf "%d,%dc%d,%d\n", $diff->Get(qw( Min1 Max1 Min2 Max2 ));
+    }
+    print "< ($branch1) $_\n" for map { $first[$_] } $diff->Range(1);
+    #print "< $_\n"   for  $diff->Items(1);
+    print $sep;
+    print "< ($branch2) $_\n" for map { $second[$_] } $diff->Range(2);
+    #print "> $_\n"   for  $diff->Items(2);
+}
