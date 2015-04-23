@@ -7,10 +7,7 @@ BRANCH=$(git describe --all | perl -lne's!^heads/!!;print')
 PAGER=
 
 # Which branch to start with, defaults to master
-STARTBRANCH=$1
-if [[ -z $STARTBRANCH ]]; then
-    STARTBRANCH=master
-fi
+STARTBRANCH=${1:-master}
 
 # Lines look like:
 # * c0ffee00 commit message1
@@ -23,7 +20,7 @@ fi
 
 echo "### navigate commits with /pick and 'n' or 'N'"
 echo "### use 'd/pick' on a line below 'pick' to clear the files changed by a specific commit"
-echo "### START Rebasing branch $BRANCH"
+echo "### START Rebasing branch $BRANCH to $STARTBRANCH"
 echo "###"
 echo "#"
 git log --reverse --pretty=format:'* %h   %s' --abbrev-commit --stat --name-only $STARTBRANCH.. | perl -lne'
