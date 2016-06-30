@@ -12,4 +12,5 @@ if [[ -z "$BRANCH" ]]; then
   echo "Cannot find branch ref for the current ref. Giving up."
   exit 1
 fi
-git for-each-ref --format="%(upstream:short)" $BRANCH
+UPSTREAM=$(git for-each-ref --format="%(upstream:short)" $BRANCH)
+if [[ -z "$UPSTREAM" ]]; then echo "master"; else echo "$UPSTREAM"; fi
