@@ -1,4 +1,4 @@
-# What are los-opinionated-git-tools?
+# What are los-opinionated-git-tools?
 
 This is a collection of aliases and "git commands" you may want to place in
 your ~/bin/ directory, to aid your day-to-day interaction with Git.
@@ -13,7 +13,7 @@ Some of them have been created while working at The Register (Situation
 Publishing LTD), and they kindly agreed to have me release them under a
 permissive (BSD) license. So,
 
-# COPYRIGHT NOTICE
+# COPYRIGHT NOTICE
 
 Copyright (c) 2011, 2012 Marco Fontani <MFONTANI@cpan.org>. Portions Copyright (c) 2011, 2012 Situation Publishing LTD. All rights reserved.
 
@@ -57,7 +57,7 @@ see which (if any) aliases of yours would be wiped by installing the new aliases
 
 The code which does this may be clunky, so use at your own risk!
 
-# COMMANDS
+# COMMANDS
 
 These are the commands which will be installed to your ~/bin/ when doing a
 "make install":
@@ -86,7 +86,7 @@ to REVIEW/branchname or back. Written in Perl.
 Shows a list of files which were added or changed in the current branch,
 compared to a given branch, or "master".
 
-    [mf/foo] $ git files-changed-from   # defaults to "master"
+    [mf/foo] $ git files-changed-from   # defaults to "master"
     path/to/foo
     path/to/bar
 
