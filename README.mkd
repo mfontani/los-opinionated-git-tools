@@ -1,13 +1,13 @@
 # What are los-opinionated-git-tools?
 
 This is a collection of aliases and "git commands" you may want to place in
-your ~/bin/ directory, to aid your day-to-day interaction with Git.
+your `~/bin/` directory, to aid your day-to-day interaction with Git.
 
 I've used these ones for a long time, both at home and at my current workplace.
 
-Some aliases and scripts "just" need /bin/bash; others need "perl" installed in
-the system.  Some of them should be rewritten to use just /bin/bash. Patches
-welcome.
+Some aliases and scripts "just" need `/bin/bash`; others need `perl` installed
+in the system.  Some of them should be rewritten to use just `/bin/bash`.
+Patches welcome.
 
 Some of them have been created while working at The Register (Situation
 Publishing LTD), and they kindly agreed to have me release them under a
@@ -15,7 +15,7 @@ permissive (BSD) license. So,
 
 # COPYRIGHT NOTICE
 
-Copyright (c) 2011, 2012 Marco Fontani <MFONTANI@cpan.org>. Portions Copyright (c) 2011, 2012 Situation Publishing LTD. All rights reserved.
+Copyright (c) 2011, 2017 Marco Fontani <MFONTANI@cpan.org>. Portions Copyright (c) 2011, 2012 Situation Publishing LTD. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
@@ -52,15 +52,16 @@ These aliases will be installed if you launch:
     git ll   - shows a short log of changes from master
     git llo  - shows a short log of changes from origin/master
 
-It's recommended you run ./setup-add-gitconfig-aliases with no parameters, to
-see which (if any) aliases of yours would be wiped by installing the new aliases. 
+It's recommended you run `./setup-add-gitconfig-aliases` with no parameters, to
+see which (if any) aliases of yours would be wiped by installing the new
+aliases.
 
 The code which does this may be clunky, so use at your own risk!
 
 # COMMANDS
 
-These are the commands which will be installed to your ~/bin/ when doing a
-"make install":
+These are the commands which will be installed to your `~/bin/` when doing a
+`make install`:
 
 ## git-changefile
 
@@ -71,9 +72,9 @@ branch's, if there are any. Written in Perl.
 
 ## git-dump
 
-With no arguments, "toggles" renaming the current branch from branchname
-to DUMP/branchname or back. If given an argument, it toggles it from branchname
-to REVIEW/branchname or back. Written in Perl.
+With no arguments, "toggles" renaming the current branch from branchname to
+`DUMP/branchname` or back. If given an argument, it toggles it from branchname
+to `REVIEW/branchname` or back. Written in Perl.
 
     [mf/foo] $ git dump
     [DUMP/mf/foo] $ git dump
@@ -84,7 +85,7 @@ to REVIEW/branchname or back. Written in Perl.
 ## git-files-changed-from
 
 Shows a list of files which were added or changed in the current branch,
-compared to a given branch, or "master".
+compared to a given branch, or `master`.
 
     [mf/foo] $ git files-changed-from   # defaults to "master"
     path/to/foo
@@ -96,8 +97,8 @@ compared to a given branch, or "master".
 
 ## git-rr
 
-To be used within Vim, inside the text shown by "git rebase --interactive FOO".
-Visually select the various "pick" lines, and ":'<,'>!git-rr FOO" on them.
+To be used within Vim, inside the text shown by `git rebase --interactive FOO`.
+Visually select the various `pick` lines, and `:'<,'>!git-rr FOO` on them.
 It will replace those commit lines with the same commit line, followed by the
 list of files which were changed/added/deleted by that commit. This aids when
 going through a list of commits to find which commits should be squashed or
@@ -151,7 +152,7 @@ and note down its SHA. Subsequently, you do:
 The above will commit the two files and add a commit telling the script to
 automatically "fixup" it into the given SHA commit. It will also launch the
 rebase and do the automatic fixup. If you don't want the automatic rebase to be
-performed, you simply use the "--no-auto" option and eventually the "-f" option
+performed, you simply use the `--no-auto` option and eventually the `-f` option
 to actually perform the automatic rebase.
 
     [foobar] $ git add foo; git fixup --no-auto SHA
@@ -161,11 +162,11 @@ to actually perform the automatic rebase.
     [foobar] $ git fixup -f
     # automatic rebase/fixup behind the scenes
 
-Case B: You're code-code-code-ing on a branch and notice you screwed up something
-in an earlier commit. Luckily, you know you screwed it up on the *last* commit
-to touch that file. You want the current change to be fixed up automatically to
-that last commit. You can use --no-auto if you want to continue working without
-having the automatic rebase happen behind the scenes:
+Case B: You're code-code-code-ing on a branch and notice you screwed up
+something in an earlier commit. Luckily, you know you screwed it up on the
+*last* commit to touch that file. You want the current change to be fixed up
+automatically to that last commit. You can use `--no-auto` if you want to
+continue working without having the automatic rebase happen behind the scenes:
 
     $ echo -e'package foobar;\nsub new {}\n' > foobar.pm
     $ git add foobar.pm ; git commit foobar.pm -m 'Add foobar.pm'
