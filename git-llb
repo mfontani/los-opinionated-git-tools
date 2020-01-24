@@ -1,0 +1,19 @@
+#!/bin/bash
+if [[ -z "$1" ]]; then
+    >&2 echo "Error: need a branch name"
+    exit 1
+fi
+if [[ "$1" == "--help" ]]; then
+    echo 'Usage: git-llb BRANCH_NAME [master|BASE_BRANCH] [git log OPTIONS]'
+    exit 0
+fi
+branch="$1"
+shift
+base="${1:-master}"
+shift
+merge_base="$( git merge-base "${branch}" "${base}" )"
+git log \
+    --reverse \
+    --no-prefix --pretty=oneline --abbrev-commit --stat --color=always \
+    "${merge_base}...${branch}" \
+    "$@"

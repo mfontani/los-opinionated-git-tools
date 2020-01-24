@@ -82,6 +82,12 @@ to `REVIEW/branchname` or back. Written in Perl.
     [REVIEW/mf/foo] $ git dump
     [mf/foo] $
 
+## git-llb
+
+Shows a list of commits (in `git lls` style) for a given branch, only looking
+at the commits between the branch's `merge-base` with `master` and the branch's
+tip.
+
 ## git-files-changed-from
 
 Shows a list of files which were added or changed in the current branch,
