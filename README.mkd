@@ -115,6 +115,9 @@ fixup'd where, based on which files were changed. Mnemonic: "Rebase Right".
     /pick<Enter>V}          # visually select commits block
     :!git rr FOO            # replace lines with output of script
 
+... or use the configuration found at the end of the `git-rr` code, which runs
+something like that automatically, and should pick up the branch name as well.
+
 ## git-show-missing-commits
 
 Given two branches, shows which commits "are the same" or differ between these

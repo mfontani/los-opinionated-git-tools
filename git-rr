@@ -6,8 +6,19 @@ BRANCH=$(git rev-parse --abbrev-ref HEAD)
 # Kill the "git log" paging features
 PAGER=
 
-# Which branch to start with, defaults to master
+# Which branch to start with, might be given as the lone parameter.
 STARTBRANCH=${1:-master}
+
+# The "start branch" might be a SHA, in which case the user _might_ prefer it
+# to see/use the symbolic name for it instead.
+if [[ "$STARTBRANCH" =~ ^[a-fA-F0-9]{8,40}$ ]]; then
+    possible=$(git name-rev --name-only "$STARTBRANCH")
+    # f00f00 -> "master" great!
+    # f00f00 -> "master~2" screw it.
+    if [[ ! "$possible" =~ ~[1-9][0-9]*$ ]]; then
+        STARTBRANCH=$possible
+    fi
+fi
 
 # Lines look like:
 # * c0ffee00 commit message1
@@ -20,10 +31,9 @@ STARTBRANCH=${1:-master}
 
 echo "### navigate commits with /pick and 'n' or 'N'"
 echo "### use 'd/pick' on a line below 'pick' to clear the files changed by a specific commit"
-echo "### START Rebasing branch $BRANCH to $STARTBRANCH"
-echo "###"
+echo "### START Rebasing branch $BRANCH onto $STARTBRANCH (${1:-master})"
 echo "#"
-git log --reverse --pretty=format:'* %h   %s' --abbrev-commit --stat --name-only $STARTBRANCH.. | perl -lne'
+git log --reverse --pretty=format:'* %h   %s' --abbrev-commit --stat --name-only "$STARTBRANCH.." | perl -lne'
     BEGIN {
       %seen = ();
       $file = 1;
@@ -41,7 +51,32 @@ git log --reverse --pretty=format:'* %h   %s' --abbrev-commit --stat --name-only
     }
     print
 '
-echo "#"
-echo "###"
-echo "### END Rebasing branch $BRANCH"
-echo "###"
+# Empty line allows Vim users to use "}" to go to the end of the commit list,
+# to more easily find the last one.
+echo ""
+echo "### END Rebasing branch $BRANCH onto $STARTBRANCH (${1:-master})"
+
+### Example ~/.vimrc to use this:
+### " Run "git rr" when first entering a rebase buffer; don't do it if it has
+### " already "been tampered with" (which is easy to check as all added lines
+### " start with a '###', thus the first line's first "word" is ###
+### " The buffer should also contain what thing we're rebasing towards, i.e.:
+### " # Rebase 8fc2f00f00..83d8f00f00 onto 8fc2f00f00 (9 commands)
+### "                                      ^^^^^ target "branch"
+### " ... which can be used to infer what, if anything, we should pass "git-rr"
+### " to ensure it performs the "right" rebase.
+### autocmd BufEnter *
+###     \ if &filetype == 'gitrebase' && split(getline(1))[0] != '###' |
+###     \   execute "normal! gg/^# Rebase.*onto\<Enter>" |
+###     \   execute "normal! /onto\<Enter>" |
+###     \   execute "normal! wyiw" |
+###     \   execute "normal! ggV}k:!git rr " . getreg('"') . "\<Enter>" |
+###     \   execute "normal! gg/^pick\<Enter>" |
+###     \   execute "nohl" |
+###     \ endif
+### " in gitrebase, you can use gj and gk to move commit by commit
+### autocmd FileType gitrebase nnoremap <buffer> gj /\v^(pick\|reword\|edit\|squash\|fixup\|exec\|drop)<CR>:nohl<CR>
+### autocmd FileType gitrebase nnoremap <buffer> gk ?\v^(pick\|reword\|edit\|squash\|fixup\|exec\|drop)<CR>:nohl<CR>
+### " ... or gf and gF to move FILE by FILE
+### autocmd FileType gitrebase nnoremap <buffer> gf /FILE\d\+\s<CR>:nohl<CR>
+### autocmd FileType gitrebase nnoremap <buffer> gF ?FILE\d\+\s<CR>:nohl<CR>
