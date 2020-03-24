@@ -62,14 +62,13 @@ echo "### END Rebasing branch $BRANCH onto $STARTBRANCH (${1:-master})"
 ### " start with a '###', thus the first line's first "word" is ###
 ### " The buffer should also contain what thing we're rebasing towards, i.e.:
 ### " # Rebase 8fc2f00f00..83d8f00f00 onto 8fc2f00f00 (9 commands)
-### "                                      ^^^^^ target "branch"
+### "          ^^^^^ target "start"
 ### " ... which can be used to infer what, if anything, we should pass "git-rr"
 ### " to ensure it performs the "right" rebase.
 ### autocmd BufEnter *
 ###     \ if &filetype == 'gitrebase' && split(getline(1))[0] != '###' |
 ###     \   execute "normal! gg/^# Rebase.*onto\<Enter>" |
-###     \   execute "normal! /onto\<Enter>" |
-###     \   execute "normal! wyiw" |
+###     \   execute "normal! wwyt." |
 ###     \   execute "normal! ggV}k:!git rr " . getreg('"') . "\<Enter>" |
 ###     \   execute "normal! gg/^pick\<Enter>" |
 ###     \   execute "nohl" |
