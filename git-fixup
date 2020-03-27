@@ -76,7 +76,7 @@ Example: commit fixups, but not yet rebase them; then, do the rebase:
       the last commit which "touched" FILE
 
 "FILTER MODE"
-    EDITOR="git fixup --filter --branch=BRANCH" git rebase --interactive BRANCH
+    GIT_SEQUENCE_EDITOR="git fixup --filter --branch=BRANCH" git rebase --interactive BRANCH
     git fixup --filter --branch=BRANCH /path/to/file
     - Reads the commit SHAs given on STDIN
     - places the lines $FIXUP_CMD properly
@@ -101,19 +101,38 @@ sub fixup_commits_for {
     }
     return \@good, \@orphaned;
 }
+sub fix_diff_filename {
+    my $file = shift;
+    return $file
+        if !defined $file
+        || $file !~ m!\A[ab]/!xms;
+    $file =~ s!\A[ab]/!!xms
+        if !-f $file;
+    return $file;
+}
 sub output  { push @output_lines, @_; return \@output_lines; }
 sub verbose { return if !$verbose;    output @_; }
 sub debug   { return if !$debug;      output @_; }
 
-my $sha_or_file = shift @ARGV;
+my $sha_or_file = fix_diff_filename(shift @ARGV);
 do { die "Need a SHA or FILE to operate on. See -h.\n" }
     if !$filter_mode && (!$force && !$sha_or_file);
+
+# make git fixup DWIW if given a a/ or b/ prefixed file from git diff
+$sha_or_file =~ s!\A[ab]/!!xms
+    if !-f $sha_or_file
+    && -f  $sha_or_file =~ s!\A[ab]/!!xmsr;
+# make git fixup DWIW if given an absolute path because of fat fingers
+$sha_or_file =~ s!\A/+!!xms
+    if !-f $sha_or_file
+    && -f  $sha_or_file =~ s!\A/+!!xmsr;
 
 if (!$filter_mode) {
     die "Sorry, $sha_or_file does *not* look like either a file or a SHA\n"
         if !$force
         && !-f $sha_or_file
         && $sha_or_file !~ /^[a-fA-F0-9]+$/;
+    $sha_or_file =~ s{\A[.]/}{}xms;
     if ( $sha_or_file && -f $sha_or_file ) {
         my @status = qx{git status --porcelain};
         die "ERROR: Cannot fixup $sha_or_file as it's not even added!\n"
@@ -122,17 +141,17 @@ if (!$filter_mode) {
             if !scalar grep { /^.. \Q$sha_or_file\E/ } @status;
         qx{git commit $sha_or_file -m '$FIXUP_CMD FILE:$sha_or_file'};
     } elsif ( $sha_or_file && $sha_or_file =~ /^[a-fA-F0-9]+$/ ) {
-        my @found = qx{git show --pretty=oneline -- $sha_or_file};
+        my @found = qx{git show --pretty=oneline $sha_or_file};
         die "Commit ID $sha_or_file not found. Aborting.\n"
             if !@found;
-        qx{git commit $sha_or_file -m '$FIXUP_CMD SHA:$sha_or_file'};
+        qx{git commit -am '$FIXUP_CMD SHA:$sha_or_file'};
     }
     if ($auto_squash) {
         my @options;
         push @options, "--verbose" if $verbose;
         push @options, "--debug"   if $debug;
         push @options, "--branch $branch";
-        my $cmd = "EDITOR=\"$0 --filter @options\" git rebase --interactive $branch";
+        my $cmd = "GIT_SEQUENCE_EDITOR=\"$0 --filter @options\" git rebase --interactive $branch";
         print "Executing:\n$cmd\n" if $debug;
         exec $cmd
             or die "Could not exec $cmd: $!";
@@ -141,7 +160,7 @@ if (!$filter_mode) {
 }
 
 # Filter mode, called from:
-# EDITOR="$0 --filter --branch=FOO" git rebase --interactive FOO
+# GIT_SEQUENCE_EDITOR="$0 --filter --branch=FOO" git rebase --interactive FOO
 verbose "# $INVOCATION\n";
 
 # Get input into @original_lines
