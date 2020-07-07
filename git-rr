@@ -36,20 +36,37 @@ echo "#"
 git log --reverse --pretty=format:'* %h   %s' --abbrev-commit --stat --name-only "$STARTBRANCH.." | perl -lne'
     BEGIN {
       %seen = ();
+      %used = ();
       $file = 1;
+      @lines = ();
     }
     s!\s*$!!;               # kill any trailing spaces
     if ( m!^\*! ) {
-        s!^\*!pick    !     # by default, show "pick"
+        s!^\*!pick    !;    # by default, show "pick"
+        push @lines, $_;
     } elsif (/^\s*$/) {     # skip whitespace-only lines
         next;
-    } else {                # comment-out "file id", and file name
-        $seen{$_} = $file++
+    } else {                # a "file name" line
+        $seen{$_} = $file++ # track which "unique file number" is it
             if !$seen{$_};
-        $id = sprintf("FILE%05x", $seen{$_});
-        s!^!#        $id !;
+        $used{$_}++;        # track how many times it has been "seen"
+        push @lines, $_;
     }
-    print
+    END {
+        # Sort file names by how many times they appear in the list of commits
+        # or just by file name if they appear the same amount of times.
+        my @sorted  = reverse sort { $used{$a} <=> $used{$b} || $a cmp $b } keys %used;
+        # Rename those file names as FILE00001..FILEfffff with FILE00001 being
+        # the most seen one, and FILEfffff being the least seen one.
+        my %renamed = map { ( $sorted[$_] => sprintf "FILE%05x", $_ + 1 ) } 0..$#sorted;
+        # Show the list of commits, and a commented-out "file id, file name" for
+        # the files used lines.
+        for my $line (@lines) {
+            print exists $used{$line}
+                ? sprintf "#        %s %s", $renamed{$line}, $line
+                : $line;
+        }
+    }
 '
 # Empty line allows Vim users to use "}" to go to the end of the commit list,
 # to more easily find the last one.
@@ -79,3 +96,13 @@ echo "### END Rebasing branch $BRANCH onto $STARTBRANCH (${1:-master})"
 ### " ... or gf and gF to move FILE by FILE
 ### autocmd FileType gitrebase nnoremap <buffer> gf /FILE\d\+\s<CR>:nohl<CR>
 ### autocmd FileType gitrebase nnoremap <buffer> gF ?FILE\d\+\s<CR>:nohl<CR>
+### " You could also highlight each FILENNNNN using a different/neater colour
+### " depending on how often it's used:
+### autocmd FileType gitrebase highlight GITREBASEFILE00001 guibg=#00ff00 guifg=#000000 ctermbg=46  ctermfg=16
+### autocmd FileType gitrebase highlight GITREBASEFILE00002 guibg=#FF0000 guifg=#000000 ctermbg=196 ctermfg=16
+### autocmd FileType gitrebase highlight GITREBASEFILE00003 guibg=#ff00ff guifg=#000000 ctermbg=201 ctermfg=16
+### " ...
+### autocmd FileType gitrebase call matchadd("GITREBASEFILE00001", "FILE00001")
+### autocmd FileType gitrebase call matchadd("GITREBASEFILE00002", "FILE00002")
+### autocmd FileType gitrebase call matchadd("GITREBASEFILE00003", "FILE00003")
+### " ...
