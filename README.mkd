@@ -63,6 +63,18 @@ The code which does this may be clunky, so use at your own risk!
 These are the commands which will be installed to your `~/bin/` when doing a
 `make install`:
 
+## git-com
+
+Switch to the "main"/"primary" branch of the repository, preferring the
+following names (in order):
+
+- `blead`, used by Perl
+- `main`, which is soon going to become the new default branch
+- `master`, the current/old default branch name
+
+I used to have this as an alias `com = checkout master` but this script
+versions DWIMs a lot more.
+
 ## git-changefile
 
 For each local branch, shows the differences between that branch's file and this
