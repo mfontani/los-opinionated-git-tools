@@ -2,11 +2,4 @@
 
 set -e
 
-cd "$(git rev-parse --show-toplevel)" || exit 1
-branch=master
-if [ -f .git/refs/heads/blead ]; then
-    branch=blead
-elif [ -f .git/refs/heads/main ]; then
-    branch=main
-fi
-git checkout "$branch"
+git checkout "$(git main)"
