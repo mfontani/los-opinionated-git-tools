@@ -24,6 +24,6 @@ if ($branch =~ /^$re_prefix/) {
 }
 
 print "Renaming $branch to $new\n";
-qx{git checkout -b $new};
-qx{git branch   -d $branch};
+qx{git checkout -b "$new"};
+qx{git branch   -d "$branch"};
 print "Done\n";
