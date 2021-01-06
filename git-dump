@@ -9,8 +9,11 @@ my $re_prefix = qr!(REVIEW|DUMP)!;
 my $branch = qx!git rev-parse --abbrev-ref HEAD!;
 chomp $branch;
 
-die "Can't do that on master\n"
-    if $branch eq 'master';
+my $main_branch = qx!git main!;
+chomp $main_branch;
+
+die "Can't do that on $main_branch\n"
+    if $main_branch eq $branch;
 
 my $new;
 if ($branch =~ /^$re_prefix/) {
