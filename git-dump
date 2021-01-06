@@ -6,12 +6,8 @@ my $review = shift;
 my $prefix = $review ? 'REVIEW' : 'DUMP';
 my $re_prefix = qr!(REVIEW|DUMP)!;
 
-my $branch = do {
-    my @branches = qx{git branch};
-    chomp @branches;
-    my ($possible) = map { s/^\*\s+//; $_ } grep { /^\*/ } @branches;
-    $possible;
-};
+my $branch = qx!git rev-parse --abbrev-ref HEAD!;
+chomp $branch;
 
 die "Can't do that on master\n"
     if $branch eq 'master';
