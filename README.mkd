@@ -15,7 +15,7 @@ permissive (BSD) license. So,
 
 # COPYRIGHT NOTICE
 
-Copyright (c) 2011, 2017 Marco Fontani <MFONTANI@cpan.org>. Portions Copyright (c) 2011, 2012 Situation Publishing LTD. All rights reserved.
+Copyright (c) 2011-2021 Marco Fontani <MFONTANI@cpan.org>. Portions Copyright (c) 2011, 2012 Situation Publishing LTD. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
@@ -117,6 +117,15 @@ compared to a given branch, or `master`.
     [mf/foo/bar] $ git files-changed-from mf/foo
     path/to/foo2
     path/to/bar2
+
+## git-reauthor
+
+Change the author of the current commit to one from the current repo's log.
+
+Fails if it can't find such an author, or if the given parameter matches more
+than one author. Uses `git log` and the mailmap file behind the scenes.
+
+    $ git reauthor Marco
 
 ## git-rr
 

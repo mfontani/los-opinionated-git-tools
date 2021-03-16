@@ -1,0 +1,45 @@
+#!/bin/bash
+
+spec=$1
+if [[ -z "$spec" ]]; then
+    >&2 echo 'Need a new author!'
+    exit 1
+fi
+shift
+if [[ -n "$1" ]]; then
+    >&2 echo 'Too many arguments!'
+    exit 1
+fi
+
+declare -a valid_authors
+while IFS='' read -r author; do
+    valid_authors+=("$author")
+done < <(
+    git log --use-mailmap --format='%an <%ae>' \
+        | sort | git check-mailmap --stdin \
+        | sort | uniq
+)
+
+declare -a found_authors
+for author in "${valid_authors[@]}"; do
+    if [[ "$author" =~ $spec ]]; then
+        found_authors+=("$author")
+    fi
+done
+
+if [[ "${#found_authors[@]}" -lt 1 ]]; then
+    >&2 echo "No authors matched '$spec'"
+    exit 1
+fi
+
+set -e
+
+if [[ "${#found_authors[@]}" -gt 2 ]]; then
+    >&2 echo "Too many authors matched '$spec':"
+    for author in "${found_authors[@]}"; do
+        >&2 echo "  $author"
+    done
+    exit 1
+fi
+
+git commit --amend "--author=${found_authors[0]}"
