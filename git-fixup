@@ -3,10 +3,24 @@ use strict;
 use warnings;
 use Getopt::Long;
 
+# The repo might default to master, main, blead, etc. DWIM.
+my $DEFAULT_BRANCH = do {
+    my $toplevel = qx!git rev-parse --show-toplevel!;
+    chomp $toplevel;
+    if (-e "$toplevel/.git/refs/heads/blead") {
+        'blead';
+    } elsif (-e "$toplevel/.git/refs/heads/main") {
+        'main';
+    }
+    else {
+        'master';
+    }
+};
+
 my $verbose     = 0;
 my $auto_squash = 1;
 my $filter_mode = 0;
-my $branch      = 'master';
+my $branch      = $DEFAULT_BRANCH;
 my $help        = 0;
 my $man         = 0;
 my $debug       = 0;
@@ -27,11 +41,11 @@ my $rc = GetOptions(
 );
 
 my $USAGE = <<"END_HELP";
-Usage: git fixup OPTIONS [--branch=master] [--verbose] [--no-auto] [--filter] [SHA/FILE]
+Usage: git fixup OPTIONS [--branch=$DEFAULT_BRANCH] [--verbose] [--no-auto] [--filter] [SHA/FILE]
 
 OPTIONS:
 
-    --branch  -b   Specify a branch to rebase interactive to (default: master)
+    --branch  -b   Specify a branch to rebase interactive to (default: $DEFAULT_BRANCH)
     --filter  -F   Work in "filter mode", or "commit mode" if not present
     --auto    -a   (default) perform an interactive rebase after the commit
     --no-auto      Do not perform the interactive rebase just yet
@@ -71,7 +85,7 @@ Example: commit fixups, but not yet rebase them; then, do the rebase:
     - stash changes not in the index
     - commit '$FIXUP_CMD SHA'
     - if --no-auto, exit; else
-    - start a git rebase --interactive BRANCH (defaults to master)
+    - start a git rebase --interactive BRANCH (defaults to $DEFAULT_BRANCH)
     - and auto-squash the current commit into the SHA-named commit, or
       the last commit which "touched" FILE
 
