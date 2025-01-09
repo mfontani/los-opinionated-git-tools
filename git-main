@@ -6,5 +6,9 @@ if [ -f .git/refs/heads/blead ]; then
     branch=blead
 elif [ -f .git/refs/heads/main ]; then
     branch=main
+elif [ -f .git/refs/heads/development ]; then
+    branch=development
+elif [ -f .git/refs/heads/develop ]; then
+    branch=develop
 fi
 printf '%s' "$branch"
