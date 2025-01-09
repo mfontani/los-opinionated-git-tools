@@ -39,6 +39,53 @@ git log --reverse --pretty=format:'* %h   %s' --abbrev-commit --stat --name-only
       %used = ();
       $file = 1;
       @lines = ();
+      $WANTS_COLOR = $ENV{USE_COLORS} ? 1 : $ENV{NO_COLOR} ? 0 : -t STDOUT ? 1 : 0;
+      $USE_RGB = $WANTS_COLOR && $ENV{COLORTERM} && $ENV{COLORTERM} eq "truecolor" ? 1 : 0;
+      $USE_256 = $WANTS_COLOR && (($ENV{COLORTERM} && $ENV{COLORTERM} eq "256color") || $ENV{TERM} =~ /256color/) ? 1 : 0;
+      $RESET = $WANTS_COLOR ? "\e[0m" : "";
+      %colors = ();
+      if ($WANTS_COLOR) {
+        @colors_setup = (
+          # idx,  fg,  bg,  rgb-fg,        rgb-bg
+          [ 0x01, 16,  46,  "255;255;255", "230;25;75"   ], ## #ffffff on #e6194b
+          [ 0x02, 16,  196, "0;0;0",       "60;180;75"   ], ## #000000 on #3cb44b
+          [ 0x03, 16,  201, "0;0;0",       "255;225;25"  ], ## #000000 on #ffe119
+          [ 0x04, 16,  28,  "255;255;255", "67;99;216"   ], ## #ffffff on #4363d8
+          [ 0x05, 16,  88,  "0;0;0",       "245;130;49"  ], ## #000000 on #f58231
+          [ 0x06, 16,  100, "255;255;255", "145;30;180"  ], ## #ffffff on #911eb4
+          [ 0x07, 16,  90,  "0;0;0",       "66;212;244"  ], ## #000000 on #42d4f4
+          [ 0x08, 16,  250, "255;255;255", "240;50;230"  ], ## #ffffff on #f032e6
+          [ 0x09, 16,  244, "0;0;0",       "191;239;69"  ], ## #000000 on #bfef45
+          [ 0x0A, 16,  226, "0;0;0",       "250;190;212" ], ## #000000 on #fabed4
+          [ 0x0B, 16,  129, "255;255;255", "70;153;144"  ], ## #ffffff on #469990
+          [ 0x0C, 16,  158, "0;0;0",       "220;190;255" ], ## #000000 on #dcbeff
+          [ 0x0D, 16,  124, "255;255;255", "154;99;36"   ], ## #ffffff on #9A6324
+          [ 0x0E, 102, 27,  "0;0;0",       "255;250;200" ], ## #000000 on #fffac8
+          [ 0x0F, 16,  40,  "255;255;255", "128;0;0"     ], ## #ffffff on #800000
+          [ 0x10, 16,  219, "0;0;0",       "170;255;195" ], ## #000000 on #aaffc3
+          [ 0x11, 102, 46,  "255;255;255", "128;128;0"   ], ## #ffffff on #808000
+          [ 0x12, 231, 196, "0;0;0",       "255;216;177" ], ## #000000 on #ffd8b1
+          [ 0x13, 231, 201, "255;255;255", "0;0;117"     ], ## #ffffff on #000075
+          [ 0x14, 231, 28,  "0;0;0",       "169;169;169" ], ## #000000 on #a9a9a9
+          [ 0x15, 231, 88,  "0;0;0",       "255;255;255" ], ## #000000 on #ffffff
+          [ 0x16, 231, 100, "255;255;255", "0;0;0"       ], ## #ffffff on #000000
+          [ 0x17, 231, 90,  "255;255;0",   "128;0;128"   ], ## #ffff00 on #800080
+          [ 0x18, 102, 250, "255;0;0",     "192;192;192" ], ## #ff0000 on #C0C0C0
+          [ 0x19, 231, 244, "128;0;0",     "128;128;128" ], ## #800000 on #808080
+          [ 0x1A, 102, 226, "255;0;0",     "255;225;25"  ], ## #ff0000 on #ffe119
+          [ 0x1B, 231, 129, "255;0;0",     "145;30;180"  ], ## #ff0000 on #911eb4
+          [ 0x1C, 231, 158, "255;0;0",     "0;128;128"   ], ## #ff0000 on #008080
+          [ 0x1D, 231, 124, "255;0;0",     "128;0;0"     ], ## #ff0000 on #800000
+          [ 0x1E, 231, 27,  "255;0;0",     "0;0;128"     ], ## #ff0000 on #000080
+          [ 0x1F, 231, 40,  "255;0;0",     "170;255;195" ], ## #ff0000 on #aaffc3
+        );
+        if ($USE_RGB) {
+          $colors{$_->[0]} = "\e[0;38;2;$_->[3];48;2;$_->[4]m" for @colors_setup;
+        }
+        elsif ($USE_256) {
+          $colors{$_->[0]} = "\e[0;38;5;$_->[1];48;5;$_->[2]m" for @colors_setup;
+        }
+      }
     }
     s!\s*$!!;               # kill any trailing spaces
     if ( m!^\*! ) {
@@ -58,7 +105,12 @@ git log --reverse --pretty=format:'* %h   %s' --abbrev-commit --stat --name-only
         my @sorted  = reverse sort { $used{$a} <=> $used{$b} || $a cmp $b } keys %used;
         # Rename those file names as FILE00001..FILEfffff with FILE00001 being
         # the most seen one, and FILEfffff being the least seen one.
-        my %renamed = map { ( $sorted[$_] => sprintf "FILE%05x", $_ + 1 ) } 0..$#sorted;
+        my %renamed;
+        if ($WANTS_COLOR) {
+            %renamed = map { ( $sorted[$_] => sprintf "%sFILE%05x%s", $colors{$_+1}, $_ + 1, $RESET ) } 0..$#sorted;
+        } else {
+            %renamed = map { ( $sorted[$_] => sprintf "FILE%05x", $_ + 1 ) } 0..$#sorted;
+        }
         # Show the list of commits, and a commented-out "file id, file name" for
         # the files used lines.
         for my $line (@lines) {
